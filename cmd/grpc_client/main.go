@@ -18,7 +18,11 @@ func main() {
 	if err != nil {
 		log.Fatalf("connection not created: %v", err)
 	}
-	defer conn.Close()
+	defer func() {
+		if err := conn.Close(); err != nil {
+			log.Fatalf("connection cannot be closed: %v", err)
+		}
+	}()
 
 	client := descChat.NewChatV1Client(conn)
 	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Minute)
