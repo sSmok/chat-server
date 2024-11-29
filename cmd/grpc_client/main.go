@@ -2,12 +2,13 @@ package main
 
 import (
 	"context"
+	"log"
+	"time"
+
 	descChat "github.com/sSmok/chat-server/pkg/chat_v1"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/protobuf/types/known/timestamppb"
-	"log"
-	"time"
 )
 
 const address = "localhost:50501"
@@ -33,15 +34,15 @@ func main() {
 	if err != nil {
 		log.Fatalf("create request failed: %v", err)
 	}
-	chatId := createResp.GetId()
-	log.Printf("chat created successfully: %+v\n", chatId)
+	chatID := createResp.GetId()
+	log.Printf("chat created successfully: %+v\n", chatID)
 
 	//==================
-	_, err = client.Delete(ctx, &descChat.DeleteRequest{Id: chatId})
+	_, err = client.Delete(ctx, &descChat.DeleteRequest{Id: chatID})
 	if err != nil {
 		log.Fatalf("delete request failed: %v", err)
 	}
-	log.Printf("chat with id=%v deleted successfully", chatId)
+	log.Printf("chat with id=%v deleted successfully", chatID)
 
 	//==================
 	msg := &descChat.SendMessageRequest{

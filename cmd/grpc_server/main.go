@@ -3,13 +3,14 @@ package main
 import (
 	"context"
 	"fmt"
+	"log"
+	"net"
+	"slices"
+
 	descChat "github.com/sSmok/chat-server/pkg/chat_v1"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
 	"google.golang.org/protobuf/types/known/emptypb"
-	"log"
-	"net"
-	"slices"
 )
 
 const grpcPort = 50501
@@ -49,7 +50,7 @@ func (s *server) Create(_ context.Context, req *descChat.CreateRequest) (*descCh
 func (s *server) Delete(_ context.Context, req *descChat.DeleteRequest) (*emptypb.Empty, error) {
 	for i, chat := range s.data {
 		if chat.Id == req.GetId() {
-			slices.Delete(s.data, i, i+1)
+			s.data = slices.Delete(s.data, i, i+1)
 			return &emptypb.Empty{}, nil
 		}
 	}
