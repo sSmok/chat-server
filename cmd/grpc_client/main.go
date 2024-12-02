@@ -2,19 +2,35 @@ package main
 
 import (
 	"context"
+	"flag"
 	"log"
 	"time"
 
+	"github.com/sSmok/chat-server/internal/config"
 	descChat "github.com/sSmok/chat-server/pkg/chat_v1"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
-	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
-const address = "localhost:50501"
+var configPath string
+
+func init() {
+	flag.StringVar(&configPath, "config-path", ".env", "path to config file")
+}
 
 func main() {
-	conn, err := grpc.NewClient(address, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	flag.Parse()
+	err := config.Load(configPath)
+	if err != nil {
+		log.Fatalf("failed to load config: %v", err)
+	}
+
+	grpcConfig, err := config.NewGRPCConfig()
+	if err != nil {
+		log.Fatalf("failed to load GRPC config: %v", err)
+	}
+
+	conn, err := grpc.NewClient(grpcConfig.Address(), grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		log.Fatalf("connection not created: %v", err)
 	}
@@ -28,36 +44,41 @@ func main() {
 	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Minute)
 	defer cancel()
 
-	//==================
-	createReq := &descChat.CreateRequest{
-		Info: &descChat.ChatInfo{
-			Usernames: []string{"User 1", "User 2", "User 3"},
-		},
+	// CREATE USER
+	createUserReq := &descChat.CreateUserRequest{Name: "Nikita"}
+	createUserResp, err := client.CreateUser(ctx, createUserReq)
+	if err != nil {
+		log.Fatalf("failed to create user: %v", err)
 	}
-	createResp, err := client.Create(ctx, createReq)
+	userID := createUserResp.GetId()
+
+	// CREATE CHAT
+	createChatReq := &descChat.CreateChatRequest{
+		Name:    "Chat 1",
+		UserIds: []int64{userID},
+	}
+	createChatResp, err := client.CreateChat(ctx, createChatReq)
 	if err != nil {
 		log.Fatalf("create request failed: %v", err)
 	}
-	chatID := createResp.GetId()
+	chatID := createChatResp.GetId()
 	log.Printf("chat created successfully: %+v\n", chatID)
 
 	//==================
-	_, err = client.Delete(ctx, &descChat.DeleteRequest{Id: chatID})
-	if err != nil {
-		log.Fatalf("delete request failed: %v", err)
-	}
-	log.Printf("chat with id=%v deleted successfully", chatID)
-
-	//==================
 	msg := &descChat.SendMessageRequest{
-		Message: &descChat.Message{
-			From:      "User 3",
-			Text:      "Chat message text",
-			Timestamp: timestamppb.New(time.Now()),
-		},
+		UserId: userID,
+		ChatId: chatID,
+		Text:   "Text message",
 	}
 	_, err = client.SendMessage(ctx, msg)
 	if err != nil {
 		log.Fatalf("message not created: %v", err)
 	}
+
+	// DELETE CHAT
+	_, err = client.DeleteChat(ctx, &descChat.DeleteChatRequest{Id: chatID})
+	if err != nil {
+		log.Fatalf("delete request failed: %v", err)
+	}
+	log.Printf("chat with id=%v deleted successfully", chatID)
 }
