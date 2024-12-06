@@ -6,9 +6,13 @@ import (
 	"log"
 	"net"
 
-	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/sSmok/chat-server/internal/config"
+	"github.com/sSmok/chat-server/internal/model"
+	"github.com/sSmok/chat-server/internal/repository"
+	"github.com/sSmok/chat-server/internal/repository/chat"
+	"github.com/sSmok/chat-server/internal/repository/message"
+	"github.com/sSmok/chat-server/internal/repository/user"
 	descChat "github.com/sSmok/chat-server/pkg/chat_v1"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
@@ -49,42 +53,44 @@ func main() {
 	ctx := context.Background()
 	serv := grpc.NewServer()
 	reflection.Register(serv)
+
 	pool, err := pgxpool.New(ctx, pgConfig.DSN())
 	if err != nil {
 		log.Fatalf("failed to load PG config: %v", err)
 	}
+	userRepo := user.NewUserRepo(pool)
+	chatRepo := chat.NewChatRepo(pool)
+	messageRepo := message.NewMessageRepo(pool)
 
-	descChat.RegisterChatV1Server(serv, &server{pool: pool})
+	s := &server{
+		userRepo:    userRepo,
+		chatRepo:    chatRepo,
+		messageRepo: messageRepo,
+	}
+
+	descChat.RegisterChatV1Server(serv, s)
 	if err = serv.Serve(lis); err != nil {
 		log.Fatalf("failed to serve: %+v\n", err)
 	}
 }
 
 type server struct {
-	pool *pgxpool.Pool
+	userRepo    repository.UserRepositoryI
+	chatRepo    repository.ChatRepositoryI
+	messageRepo repository.MessageRepositoryI
 	descChat.UnimplementedChatV1Server
 }
 
 func (s *server) CreateUser(ctx context.Context, req *descChat.CreateUserRequest) (*descChat.CreateUserResponse, error) {
-	userQuery := `insert into users (name) values (@name) returning id;`
-	userQueryArgs := pgx.NamedArgs{
-		"name": req.GetName(),
-	}
-	var userID int64
-	err := s.pool.QueryRow(ctx, userQuery, userQueryArgs).Scan(&userID)
+	userID, err := s.userRepo.CreateUser(ctx, &model.UserInfo{Name: req.GetName()})
 	if err != nil {
 		return nil, err
 	}
-
 	return &descChat.CreateUserResponse{Id: userID}, nil
 }
 
 func (s *server) DeleteUser(ctx context.Context, req *descChat.DeleteUserRequest) (*emptypb.Empty, error) {
-	userQuery := `delete from users where id=@id;`
-	userQueryArgs := pgx.NamedArgs{
-		"id": req.GetId(),
-	}
-	_, err := s.pool.Exec(ctx, userQuery, userQueryArgs)
+	err := s.userRepo.DeleteUser(ctx, req.GetId())
 	if err != nil {
 		return nil, err
 	}
@@ -93,45 +99,7 @@ func (s *server) DeleteUser(ctx context.Context, req *descChat.DeleteUserRequest
 }
 
 func (s *server) CreateChat(ctx context.Context, req *descChat.CreateChatRequest) (*descChat.CreateChatResponse, error) {
-	var chatID int64
-	tx, err := s.pool.Begin(ctx)
-	if err != nil {
-		return nil, err
-	}
-	defer func() {
-		err := tx.Rollback(ctx)
-		if err != nil {
-			log.Println(err)
-		}
-	}()
-
-	chatQuery := `insert into chats (name) values (@name) returning id;`
-	chatQueryArgs := pgx.NamedArgs{
-		"name": req.GetName(),
-	}
-
-	row := tx.QueryRow(ctx, chatQuery, chatQueryArgs)
-	err = row.Scan(&chatID)
-	if err != nil {
-		return nil, err
-	}
-
-	batch := &pgx.Batch{}
-	chatUserQuery := `insert into chats_users (chat_id, user_id) values (@chat_id, @user_id);`
-	for _, id := range req.GetUserIds() {
-		chatUserQueryArgs := pgx.NamedArgs{
-			"chat_id": chatID,
-			"user_id": id,
-		}
-		batch.Queue(chatUserQuery, chatUserQueryArgs)
-	}
-
-	r := tx.SendBatch(ctx, batch)
-	err = r.Close()
-	if err != nil {
-		return nil, err
-	}
-	err = tx.Commit(ctx)
+	chatID, err := s.chatRepo.CreateChat(ctx, req.GetName(), req.GetUserIds())
 	if err != nil {
 		return nil, err
 	}
@@ -140,12 +108,7 @@ func (s *server) CreateChat(ctx context.Context, req *descChat.CreateChatRequest
 }
 
 func (s *server) DeleteChat(ctx context.Context, req *descChat.DeleteChatRequest) (*emptypb.Empty, error) {
-	delChat := `delete from chats where id = @id`
-	delChatArgs := pgx.NamedArgs{
-		"id": req.GetId(),
-	}
-
-	_, err := s.pool.Exec(ctx, delChat, delChatArgs)
+	err := s.chatRepo.DeleteChat(ctx, req.GetId())
 	if err != nil {
 		return nil, err
 	}
@@ -154,23 +117,7 @@ func (s *server) DeleteChat(ctx context.Context, req *descChat.DeleteChatRequest
 }
 
 func (s *server) SendMessage(ctx context.Context, req *descChat.SendMessageRequest) (*emptypb.Empty, error) {
-	chatUserQuery := `select id from chats_users where chat_id=@chat_id and user_id=@user_id limit 1;`
-	chatUserQueryArgs := pgx.NamedArgs{
-		"chat_id": req.GetChatId(),
-		"user_id": req.GetUserId(),
-	}
-	var chatUserID int64
-	err := s.pool.QueryRow(ctx, chatUserQuery, chatUserQueryArgs).Scan(&chatUserID)
-	if err != nil {
-		return nil, err
-	}
-
-	msgQuery := `insert into messages (source_id, text) values (@source_id, @text) returning text;`
-	msgQueryArgs := pgx.NamedArgs{
-		"source_id": chatUserID,
-		"text":      req.GetText(),
-	}
-	_, err = s.pool.Exec(ctx, msgQuery, msgQueryArgs)
+	err := s.messageRepo.CreateMessage(ctx, req.GetChatId(), req.GetUserId(), req.GetText())
 	if err != nil {
 		return nil, err
 	}
