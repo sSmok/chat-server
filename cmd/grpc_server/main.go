@@ -10,11 +10,7 @@ import (
 	chatApi "github.com/sSmok/chat-server/internal/api/chat"
 	"github.com/sSmok/chat-server/internal/config"
 	repositoryChat "github.com/sSmok/chat-server/internal/repository/chat"
-	repositoryMessage "github.com/sSmok/chat-server/internal/repository/message"
-	repositoryUser "github.com/sSmok/chat-server/internal/repository/user"
 	"github.com/sSmok/chat-server/internal/service/chat"
-	"github.com/sSmok/chat-server/internal/service/message"
-	"github.com/sSmok/chat-server/internal/service/user"
 	descChat "github.com/sSmok/chat-server/pkg/chat_v1"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
@@ -59,15 +55,10 @@ func main() {
 	if err != nil {
 		log.Fatalf("failed to load PG config: %v", err)
 	}
-	userRepo := repositoryUser.NewUserRepo(pool)
 	chatRepo := repositoryChat.NewChatRepo(pool)
-	messageRepo := repositoryMessage.NewMessageRepo(pool)
-
-	userService := user.NewUserService(userRepo)
 	chatService := chat.NewChatService(chatRepo)
-	messageService := message.NewMessageService(messageRepo)
 
-	s := chatApi.NewAPI(chatService, userService, messageService)
+	s := chatApi.NewAPI(chatService)
 
 	descChat.RegisterChatV1Server(serv, s)
 	if err = serv.Serve(lis); err != nil {

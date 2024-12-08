@@ -79,3 +79,56 @@ func (repo *chatRepo) DeleteChat(ctx context.Context, id int64) error {
 
 	return nil
 }
+
+func (repo *chatRepo) CreateUser(ctx context.Context, info *model.UserInfo) (int64, error) {
+	userQuery := `insert into users (name) values (@name) returning id;`
+	userQueryArgs := pgx.NamedArgs{
+		"name": info.Name,
+	}
+	var userID int64
+	err := repo.pool.QueryRow(ctx, userQuery, userQueryArgs).Scan(&userID)
+	if err != nil {
+		return 0, err
+	}
+
+	return userID, nil
+}
+
+func (repo *chatRepo) DeleteUser(ctx context.Context, id int64) error {
+	userQuery := `delete from users where id=@id;`
+	userQueryArgs := pgx.NamedArgs{
+		"id": id,
+	}
+	_, err := repo.pool.Exec(ctx, userQuery, userQueryArgs)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (repo *chatRepo) CreateMessage(ctx context.Context, info *model.MessageInfo) error {
+	chatUserQuery := `select id from chats_users where chat_id=@chat_id and user_id=@user_id limit 1;`
+	chatUserQueryArgs := pgx.NamedArgs{
+		"chat_id": info.ChatID,
+		"user_id": info.UserID,
+	}
+	var chatUserID int64
+	err := repo.pool.QueryRow(ctx, chatUserQuery, chatUserQueryArgs).Scan(&chatUserID)
+	if err != nil {
+		return err
+	}
+
+	msgQuery := `insert into messages (source_id, text) values (@source_id, @text);`
+	msgQueryArgs := pgx.NamedArgs{
+		"source_id": chatUserID,
+		"text":      info.Text,
+	}
+
+	_, err = repo.pool.Exec(ctx, msgQuery, msgQueryArgs)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}

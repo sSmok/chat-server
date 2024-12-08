@@ -2,7 +2,7 @@ package converter
 
 import (
 	"github.com/sSmok/chat-server/internal/model"
-	modelRepo "github.com/sSmok/chat-server/internal/repository/message/model"
+	modelRepo "github.com/sSmok/chat-server/internal/repository/chat/model"
 )
 
 // ToRepoFromMessage преобразует сообщение из сервисной модели в модель репозитория

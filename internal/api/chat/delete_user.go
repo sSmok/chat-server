@@ -9,7 +9,7 @@ import (
 
 // DeleteUser удаляет пользователя по его ID
 func (api *API) DeleteUser(ctx context.Context, req *descChat.DeleteUserRequest) (*emptypb.Empty, error) {
-	err := api.userService.DeleteUser(ctx, req.GetId())
+	err := api.chatService.DeleteUser(ctx, req.GetId())
 	if err != nil {
 		return nil, err
 	}

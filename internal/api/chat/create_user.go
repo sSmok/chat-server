@@ -10,7 +10,7 @@ import (
 // CreateUser - создание пользователя
 func (api *API) CreateUser(ctx context.Context, req *descChat.CreateUserRequest) (*descChat.CreateUserResponse, error) {
 	info := converter.ToUserInfoFromProto(req.GetInfo())
-	userID, err := api.userService.CreateUser(ctx, &info)
+	userID, err := api.chatService.CreateUser(ctx, &info)
 	if err != nil {
 		return nil, err
 	}

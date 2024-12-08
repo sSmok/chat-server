@@ -11,7 +11,7 @@ import (
 // CreateMessage - создание сообщения
 func (api *API) CreateMessage(ctx context.Context, req *descChat.CreateMessageRequest) (*emptypb.Empty, error) {
 	info := converter.ToMessageInfoFromProto(req.GetInfo())
-	err := api.messageService.CreateMessage(ctx, &info)
+	err := api.chatService.CreateMessage(ctx, &info)
 	if err != nil {
 		return nil, err
 	}

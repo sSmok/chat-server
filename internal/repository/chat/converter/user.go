@@ -2,7 +2,7 @@ package converter
 
 import (
 	"github.com/sSmok/chat-server/internal/model"
-	modelRepo "github.com/sSmok/chat-server/internal/repository/user/model"
+	modelRepo "github.com/sSmok/chat-server/internal/repository/chat/model"
 )
 
 // ToUserFromRepo преобразует модель пользователя из репозитория в сервисную модель
