@@ -8,11 +8,14 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/sSmok/chat-server/internal/config"
-	"github.com/sSmok/chat-server/internal/model"
-	"github.com/sSmok/chat-server/internal/repository"
-	"github.com/sSmok/chat-server/internal/repository/chat"
-	"github.com/sSmok/chat-server/internal/repository/message"
-	"github.com/sSmok/chat-server/internal/repository/user"
+	"github.com/sSmok/chat-server/internal/converter"
+	repositoryChat "github.com/sSmok/chat-server/internal/repository/chat"
+	repositoryMessage "github.com/sSmok/chat-server/internal/repository/message"
+	repositoryUser "github.com/sSmok/chat-server/internal/repository/user"
+	"github.com/sSmok/chat-server/internal/service"
+	"github.com/sSmok/chat-server/internal/service/chat"
+	"github.com/sSmok/chat-server/internal/service/message"
+	"github.com/sSmok/chat-server/internal/service/user"
 	descChat "github.com/sSmok/chat-server/pkg/chat_v1"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
@@ -58,14 +61,18 @@ func main() {
 	if err != nil {
 		log.Fatalf("failed to load PG config: %v", err)
 	}
-	userRepo := user.NewUserRepo(pool)
-	chatRepo := chat.NewChatRepo(pool)
-	messageRepo := message.NewMessageRepo(pool)
+	userRepo := repositoryUser.NewUserRepo(pool)
+	chatRepo := repositoryChat.NewChatRepo(pool)
+	messageRepo := repositoryMessage.NewMessageRepo(pool)
+
+	userService := user.NewUserService(userRepo)
+	chatService := chat.NewChatService(chatRepo)
+	messageService := message.NewMessageService(messageRepo)
 
 	s := &server{
-		userRepo:    userRepo,
-		chatRepo:    chatRepo,
-		messageRepo: messageRepo,
+		userService:    userService,
+		chatService:    chatService,
+		messageService: messageService,
 	}
 
 	descChat.RegisterChatV1Server(serv, s)
@@ -75,14 +82,16 @@ func main() {
 }
 
 type server struct {
-	userRepo    repository.UserRepositoryI
-	chatRepo    repository.ChatRepositoryI
-	messageRepo repository.MessageRepositoryI
+	userService    service.UserServiceI
+	chatService    service.ChatServiceI
+	messageService service.MessageServiceI
+
 	descChat.UnimplementedChatV1Server
 }
 
 func (s *server) CreateUser(ctx context.Context, req *descChat.CreateUserRequest) (*descChat.CreateUserResponse, error) {
-	userID, err := s.userRepo.CreateUser(ctx, &model.UserInfo{Name: req.GetName()})
+	info := converter.ToUserInfoFromProto(req.GetInfo())
+	userID, err := s.userService.CreateUser(ctx, &info)
 	if err != nil {
 		return nil, err
 	}
@@ -90,7 +99,7 @@ func (s *server) CreateUser(ctx context.Context, req *descChat.CreateUserRequest
 }
 
 func (s *server) DeleteUser(ctx context.Context, req *descChat.DeleteUserRequest) (*emptypb.Empty, error) {
-	err := s.userRepo.DeleteUser(ctx, req.GetId())
+	err := s.userService.DeleteUser(ctx, req.GetId())
 	if err != nil {
 		return nil, err
 	}
@@ -99,7 +108,8 @@ func (s *server) DeleteUser(ctx context.Context, req *descChat.DeleteUserRequest
 }
 
 func (s *server) CreateChat(ctx context.Context, req *descChat.CreateChatRequest) (*descChat.CreateChatResponse, error) {
-	chatID, err := s.chatRepo.CreateChat(ctx, req.GetName(), req.GetUserIds())
+	info := converter.ToChatInfoFromProto(req.GetInfo())
+	chatID, err := s.chatService.CreateChat(ctx, &info)
 	if err != nil {
 		return nil, err
 	}
@@ -108,7 +118,7 @@ func (s *server) CreateChat(ctx context.Context, req *descChat.CreateChatRequest
 }
 
 func (s *server) DeleteChat(ctx context.Context, req *descChat.DeleteChatRequest) (*emptypb.Empty, error) {
-	err := s.chatRepo.DeleteChat(ctx, req.GetId())
+	err := s.chatService.DeleteChat(ctx, req.GetId())
 	if err != nil {
 		return nil, err
 	}
@@ -116,8 +126,9 @@ func (s *server) DeleteChat(ctx context.Context, req *descChat.DeleteChatRequest
 	return &emptypb.Empty{}, nil
 }
 
-func (s *server) SendMessage(ctx context.Context, req *descChat.SendMessageRequest) (*emptypb.Empty, error) {
-	err := s.messageRepo.CreateMessage(ctx, req.GetChatId(), req.GetUserId(), req.GetText())
+func (s *server) CreateMessage(ctx context.Context, req *descChat.CreateMessageRequest) (*emptypb.Empty, error) {
+	info := converter.ToMessageInfoFromProto(req.GetInfo())
+	err := s.messageService.CreateMessage(ctx, &info)
 	if err != nil {
 		return nil, err
 	}

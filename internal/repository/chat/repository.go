@@ -6,6 +6,7 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/sSmok/chat-server/internal/model"
 	"github.com/sSmok/chat-server/internal/repository"
 )
 
@@ -18,7 +19,7 @@ func NewChatRepo(pool *pgxpool.Pool) repository.ChatRepositoryI {
 	return &chatRepo{pool: pool}
 }
 
-func (repo *chatRepo) CreateChat(ctx context.Context, name string, userIDs []int64) (int64, error) {
+func (repo *chatRepo) CreateChat(ctx context.Context, info *model.ChatInfo) (int64, error) {
 	var chatID int64
 	tx, err := repo.pool.Begin(ctx)
 	if err != nil {
@@ -33,7 +34,7 @@ func (repo *chatRepo) CreateChat(ctx context.Context, name string, userIDs []int
 
 	chatQuery := `insert into chats (name) values (@name) returning id;`
 	chatQueryArgs := pgx.NamedArgs{
-		"name": name,
+		"name": info.Name,
 	}
 
 	row := tx.QueryRow(ctx, chatQuery, chatQueryArgs)
@@ -44,7 +45,7 @@ func (repo *chatRepo) CreateChat(ctx context.Context, name string, userIDs []int
 
 	batch := &pgx.Batch{}
 	chatUserQuery := `insert into chats_users (chat_id, user_id) values (@chat_id, @user_id);`
-	for _, id := range userIDs {
+	for _, id := range info.UserIDs {
 		chatUserQueryArgs := pgx.NamedArgs{
 			"chat_id": chatID,
 			"user_id": id,

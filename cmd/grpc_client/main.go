@@ -45,7 +45,7 @@ func main() {
 	defer cancel()
 
 	// CREATE USER
-	createUserReq := &descChat.CreateUserRequest{Name: "Nikita"}
+	createUserReq := &descChat.CreateUserRequest{Info: &descChat.UserInfo{Name: "Nikita"}}
 	createUserResp, err := client.CreateUser(ctx, createUserReq)
 	if err != nil {
 		log.Fatalf("failed to create user: %v", err)
@@ -54,8 +54,10 @@ func main() {
 
 	// CREATE CHAT
 	createChatReq := &descChat.CreateChatRequest{
-		Name:    "Chat 1",
-		UserIds: []int64{userID},
+		Info: &descChat.ChatInfo{
+			Name:    "Chat 1",
+			UserIds: []int64{userID},
+		},
 	}
 	createChatResp, err := client.CreateChat(ctx, createChatReq)
 	if err != nil {
@@ -65,12 +67,14 @@ func main() {
 	log.Printf("chat created successfully: %+v\n", chatID)
 
 	//==================
-	msg := &descChat.SendMessageRequest{
-		UserId: userID,
-		ChatId: chatID,
-		Text:   "Text message",
+	msg := &descChat.CreateMessageRequest{
+		Info: &descChat.MessageInfo{
+			UserId: userID,
+			ChatId: chatID,
+			Text:   "Text message",
+		},
 	}
-	_, err = client.SendMessage(ctx, msg)
+	_, err = client.CreateMessage(ctx, msg)
 	if err != nil {
 		log.Fatalf("message not created: %v", err)
 	}

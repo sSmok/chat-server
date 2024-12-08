@@ -14,11 +14,11 @@ type UserRepositoryI interface {
 
 // ChatRepositoryI интерфейс предоставляет методы для работы с чатами
 type ChatRepositoryI interface {
-	CreateChat(ctx context.Context, name string, userIDs []int64) (int64, error)
+	CreateChat(ctx context.Context, info *model.ChatInfo) (int64, error)
 	DeleteChat(ctx context.Context, id int64) error
 }
 
 // MessageRepositoryI интерфейс предоставляет методы для работы с сообщениями
 type MessageRepositoryI interface {
-	CreateMessage(ctx context.Context, chatID, userID int64, text string) error
+	CreateMessage(ctx context.Context, info *model.MessageInfo) error
 }
