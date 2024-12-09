@@ -13,4 +13,5 @@ type ChatRepositoryI interface {
 	CreateUser(ctx context.Context, info *model.UserInfo) (int64, error)
 	DeleteUser(ctx context.Context, id int64) error
 	CreateMessage(ctx context.Context, info *model.MessageInfo) error
+	AddUsersToChat(ctx context.Context, chatID int64, userIDs []int64) error
 }

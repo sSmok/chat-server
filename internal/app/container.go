@@ -4,9 +4,10 @@ import (
 	"context"
 	"log"
 
-	"github.com/jackc/pgx/v5/pgxpool"
 	chatApi "github.com/sSmok/chat-server/internal/api/chat"
-	"github.com/sSmok/chat-server/internal/closer"
+	"github.com/sSmok/chat-server/internal/client/db"
+	"github.com/sSmok/chat-server/internal/client/db/pg"
+	"github.com/sSmok/chat-server/internal/client/db/transaction"
 	"github.com/sSmok/chat-server/internal/config"
 	"github.com/sSmok/chat-server/internal/repository"
 	chatRepo "github.com/sSmok/chat-server/internal/repository/chat"
@@ -17,12 +18,11 @@ import (
 type container struct {
 	pgConfig   config.PGConfigI
 	grpcConfig config.GRPCConfigI
-
-	pool *pgxpool.Pool
-
-	repo repository.ChatRepositoryI
-	serv service.ChatServiceI
-	api  *chatApi.API
+	dbClient   db.ClientI
+	txManager  db.TxManagerI
+	repo       repository.ChatRepositoryI
+	serv       service.ChatServiceI
+	api        *chatApi.API
 }
 
 func newContainer() *container {
@@ -51,25 +51,29 @@ func (c *container) GRPCConfig() config.GRPCConfigI {
 	return c.grpcConfig
 }
 
-func (c *container) Pool(ctx context.Context) *pgxpool.Pool {
-	if c.pool == nil {
-		pool, err := pgxpool.New(ctx, c.PGConfig().DSN())
+func (c *container) DBClient(ctx context.Context) db.ClientI {
+	if c.dbClient == nil {
+		client, err := pg.NewPGClient(ctx, c.PGConfig().DSN())
 		if err != nil {
-			log.Fatalf("failed to get pg pool: %v", err)
+			log.Fatalf("failed to get pg client: %v", err)
 		}
-		closer.Add(func() error {
-			pool.Close()
-			return nil
-		})
-
-		c.pool = pool
+		c.dbClient = client
 	}
-	return c.pool
+
+	return c.dbClient
+}
+
+func (c *container) TxManger(ctx context.Context) db.TxManagerI {
+	if c.txManager == nil {
+		c.txManager = transaction.NewManager(c.DBClient(ctx).DB())
+	}
+
+	return c.txManager
 }
 
 func (c *container) ChatRepo(ctx context.Context) repository.ChatRepositoryI {
 	if c.repo == nil {
-		repo := chatRepo.NewChatRepo(c.Pool(ctx))
+		repo := chatRepo.NewChatRepo(c.DBClient(ctx))
 		c.repo = repo
 	}
 	return c.repo
@@ -77,7 +81,7 @@ func (c *container) ChatRepo(ctx context.Context) repository.ChatRepositoryI {
 
 func (c *container) ChatService(ctx context.Context) service.ChatServiceI {
 	if c.serv == nil {
-		serv := chatService.NewChatService(c.ChatRepo(ctx))
+		serv := chatService.NewChatService(c.ChatRepo(ctx), c.TxManger(ctx))
 		c.serv = serv
 	}
 	return c.serv
