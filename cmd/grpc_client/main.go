@@ -6,8 +6,8 @@ import (
 	"log"
 	"time"
 
-	"github.com/sSmok/chat-server/internal/config"
 	descChat "github.com/sSmok/chat-server/pkg/chat_v1"
+	"github.com/sSmok/platform_common/pkg/config"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 )

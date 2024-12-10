@@ -6,8 +6,8 @@ import (
 	"net"
 
 	"github.com/joho/godotenv"
-	"github.com/sSmok/chat-server/internal/closer"
 	descChat "github.com/sSmok/chat-server/pkg/chat_v1"
+	"github.com/sSmok/platform_common/pkg/closer"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
 )

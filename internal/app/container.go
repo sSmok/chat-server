@@ -5,14 +5,14 @@ import (
 	"log"
 
 	chatApi "github.com/sSmok/chat-server/internal/api/chat"
-	"github.com/sSmok/chat-server/internal/client/db"
-	"github.com/sSmok/chat-server/internal/client/db/pg"
-	"github.com/sSmok/chat-server/internal/client/db/transaction"
-	"github.com/sSmok/chat-server/internal/config"
 	"github.com/sSmok/chat-server/internal/repository"
 	chatRepo "github.com/sSmok/chat-server/internal/repository/chat"
 	"github.com/sSmok/chat-server/internal/service"
 	chatService "github.com/sSmok/chat-server/internal/service/chat"
+	"github.com/sSmok/platform_common/pkg/client/db"
+	"github.com/sSmok/platform_common/pkg/client/db/pg"
+	"github.com/sSmok/platform_common/pkg/client/db/transaction"
+	"github.com/sSmok/platform_common/pkg/config"
 )
 
 type container struct {

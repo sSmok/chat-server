@@ -1,9 +1,9 @@
 package chat
 
 import (
-	"github.com/sSmok/chat-server/internal/client/db"
 	"github.com/sSmok/chat-server/internal/repository"
 	"github.com/sSmok/chat-server/internal/service"
+	"github.com/sSmok/platform_common/pkg/client/db"
 )
 
 type chatService struct {

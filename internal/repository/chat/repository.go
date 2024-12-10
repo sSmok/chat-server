@@ -5,10 +5,10 @@ import (
 	"errors"
 
 	"github.com/jackc/pgx/v5"
-	"github.com/sSmok/chat-server/internal/client/db"
-	"github.com/sSmok/chat-server/internal/client/db/pg"
 	"github.com/sSmok/chat-server/internal/model"
 	"github.com/sSmok/chat-server/internal/repository"
+	"github.com/sSmok/platform_common/pkg/client/db"
+	"github.com/sSmok/platform_common/pkg/client/db/pg"
 )
 
 type chatRepo struct {
