@@ -3,6 +3,7 @@ package app
 import (
 	"context"
 	"flag"
+	"log"
 	"net"
 
 	"github.com/joho/godotenv"
@@ -78,7 +79,7 @@ func (app *App) initContainer(_ context.Context) error {
 }
 
 func (app *App) initGRPCServer(ctx context.Context) error {
-	app.grpcServer = grpc.NewServer()
+	app.grpcServer = grpc.NewServer(grpc.UnaryInterceptor(app.container.AccessInterceptor().Access))
 	reflection.Register(app.grpcServer)
 	descChat.RegisterChatV1Server(app.grpcServer, app.container.ChatAPI(ctx))
 
@@ -91,6 +92,8 @@ func (app *App) runGRPCServer(_ context.Context) error {
 		return err
 	}
 	closer.Add(lis.Close)
+
+	log.Printf("GRPC server is running on %s", app.container.GRPCConfig().Address())
 
 	if err = app.grpcServer.Serve(lis); err != nil {
 		return err
