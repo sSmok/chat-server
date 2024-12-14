@@ -6,9 +6,11 @@ import (
 	"log"
 	"net"
 
+	grpcMiddleware "github.com/grpc-ecosystem/go-grpc-middleware"
 	"github.com/joho/godotenv"
 	descChat "github.com/sSmok/chat-server/pkg/chat_v1"
 	"github.com/sSmok/platform_common/pkg/closer"
+	platformInterceptor "github.com/sSmok/platform_common/pkg/interceptor"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
 )
@@ -79,7 +81,9 @@ func (app *App) initContainer(_ context.Context) error {
 }
 
 func (app *App) initGRPCServer(ctx context.Context) error {
-	app.grpcServer = grpc.NewServer(grpc.UnaryInterceptor(app.container.AccessInterceptor().Access))
+	chain := grpcMiddleware.ChainUnaryServer(app.container.AccessInterceptor().Access, platformInterceptor.Log)
+	app.grpcServer = grpc.NewServer(grpc.UnaryInterceptor(chain))
+
 	reflection.Register(app.grpcServer)
 	descChat.RegisterChatV1Server(app.grpcServer, app.container.ChatAPI(ctx))
 
