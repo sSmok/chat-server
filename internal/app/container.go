@@ -4,6 +4,8 @@ import (
 	"context"
 	"log"
 
+	"github.com/grpc-ecosystem/grpc-opentracing/go/otgrpc"
+	"github.com/opentracing/opentracing-go"
 	"github.com/sSmok/auth/pkg/access_v1"
 	chatApi "github.com/sSmok/chat-server/internal/api/chat"
 	accessClientPkg "github.com/sSmok/chat-server/internal/client"
@@ -113,6 +115,7 @@ func (c *container) AccessClient() accessClientPkg.AccessCheckerI {
 		conn, err := grpc.NewClient(
 			c.AccessGRPCConfig().Address(),
 			grpc.WithTransportCredentials(insecure.NewCredentials()),
+			grpc.WithUnaryInterceptor(otgrpc.OpenTracingClientInterceptor(opentracing.GlobalTracer())),
 		)
 		if err != nil {
 			log.Fatalf("failed to dial GRPC client: %v", err)

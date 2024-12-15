@@ -11,9 +11,12 @@ import (
 	descChat "github.com/sSmok/chat-server/pkg/chat_v1"
 	"github.com/sSmok/platform_common/pkg/closer"
 	platformInterceptor "github.com/sSmok/platform_common/pkg/interceptor"
+	"github.com/sSmok/platform_common/pkg/tracing"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
 )
+
+const serviceName = "chat-service"
 
 var configPath string
 
@@ -53,6 +56,7 @@ func (app *App) initDeps(ctx context.Context) error {
 	deps := []func(context.Context) error{
 		app.intiConfig,
 		app.initContainer,
+		app.initTracing,
 		app.initGRPCServer,
 	}
 
@@ -80,8 +84,16 @@ func (app *App) initContainer(_ context.Context) error {
 	return nil
 }
 
+func (app *App) initTracing(_ context.Context) error {
+	return tracing.Init(serviceName)
+}
+
 func (app *App) initGRPCServer(ctx context.Context) error {
-	chain := grpcMiddleware.ChainUnaryServer(app.container.AccessInterceptor().Access, platformInterceptor.Log)
+	chain := grpcMiddleware.ChainUnaryServer(
+		platformInterceptor.TracingInterceptor,
+		app.container.AccessInterceptor().Access,
+		platformInterceptor.Log,
+	)
 	app.grpcServer = grpc.NewServer(grpc.UnaryInterceptor(chain))
 
 	reflection.Register(app.grpcServer)
